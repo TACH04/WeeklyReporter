@@ -52,7 +52,7 @@ export default function Sync({ residents, fetchResidents }) {
         if (!file) return;
 
         setIsSyncing(true);
-        setStatus(`Uploading and syncing ${file.name}...`);
+        setStatus({ message: `Uploading and syncing ${file.name}...`, type: 'info' });
         
         const formData = new FormData();
         formData.append('file', file);
@@ -66,7 +66,13 @@ export default function Sync({ residents, fetchResidents }) {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            setStatus(`Success: ${res.data.message}`);
+            setStatus({
+                message: res.data.message,
+                type: 'success',
+                count: res.data.synced_count,
+                file: file.name,
+                backup: res.data.backup_collection
+            });
             // Automatically refresh data after a successful sync
             fetchResidents();
             setSheetOptions([]);
@@ -74,13 +80,13 @@ export default function Sync({ residents, fetchResidents }) {
         } catch (err) {
             console.error("Sync error:", err);
             if (err.response?.data?.requires_sheet_selection) {
-                setStatus("Please select a sheet to sync.");
+                setStatus({ message: "Please select a sheet to sync.", type: 'selection' });
                 setSheetOptions(err.response.data.sheets);
             } else if (err.response?.data?.error) {
-                setStatus(`Error: ${err.response.data.error}`);
+                setStatus({ message: err.response.data.error, type: 'error' });
                 setPendingFile(null);
             } else {
-                setStatus("An unexpected error occurred during sync.");
+                setStatus({ message: "An unexpected error occurred during sync.", type: 'error' });
                 setPendingFile(null);
             }
         } finally {
@@ -100,15 +106,15 @@ export default function Sync({ residents, fetchResidents }) {
 
         try {
             const res = await axios.post(`${API_BASE}/sync/paste`, { text: pastedData });
-            setStatus(`Success: ${res.data.message}`);
+            setStatus({ message: res.data.message, type: 'success', count: res.data.synced_count, file: 'Pasted Text' });
             fetchResidents();
             setPastedData("");
         } catch (err) {
             console.error("Paste sync error:", err);
             if (err.response?.data?.error) {
-                setStatus(`Error: ${err.response.data.error}`);
+                setStatus({ message: err.response.data.error, type: 'error' });
             } else {
-                setStatus("An unexpected error occurred during paste sync.");
+                setStatus({ message: "An unexpected error occurred during paste sync.", type: 'error' });
             }
         } finally {
             setIsSyncing(false);
@@ -139,16 +145,16 @@ export default function Sync({ residents, fetchResidents }) {
         try {
             if (editingResident) {
                 await axios.put(`${API_BASE}/residents/${editingResident.asu_id}`, residentForm);
-                setStatus(`Resident ${residentForm.first_name} updated successfully.`);
+                setStatus({ message: `Resident ${residentForm.first_name} updated successfully.`, type: 'success' });
             } else {
                 await axios.post(`${API_BASE}/residents`, residentForm);
-                setStatus(`Resident ${residentForm.first_name} added successfully.`);
+                setStatus({ message: `Resident ${residentForm.first_name} added successfully.`, type: 'success' });
             }
             setIsResidentModalOpen(false);
             fetchResidents();
         } catch (err) {
             console.error("Resident save error:", err);
-            setStatus(`Error: ${err.response?.data?.error || "Failed to save resident"}`);
+            setStatus({ message: err.response?.data?.error || "Failed to save resident", type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -165,16 +171,16 @@ export default function Sync({ residents, fetchResidents }) {
         try {
             if (deleteType === 'resident') {
                 await axios.delete(`${API_BASE}/residents/${deleteId}`);
-                setStatus("Resident deleted successfully.");
+                setStatus({ message: "Resident deleted successfully.", type: 'success' });
             } else {
                 await axios.delete(`${API_BASE}/interactions/${deleteId}`);
-                setStatus("Interaction deleted successfully.");
+                setStatus({ message: "Interaction deleted successfully.", type: 'success' });
             }
             setIsDeleteConfirmOpen(false);
             fetchResidents();
         } catch (err) {
             console.error("Delete error:", err);
-            setStatus(`Error: ${err.response?.data?.error || "Failed to delete"}`);
+            setStatus({ message: err.response?.data?.error || "Failed to delete", type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -192,12 +198,12 @@ export default function Sync({ residents, fetchResidents }) {
         setLoading(true);
         try {
             await axios.put(`${API_BASE}/interactions/${editingInteraction.id}`, { content: interactionContent });
-            setStatus("Interaction updated successfully.");
+            setStatus({ message: "Interaction updated successfully.", type: 'success' });
             setIsInteractionModalOpen(false);
             fetchResidents();
         } catch (err) {
             console.error("Interaction save error:", err);
-            setStatus(`Error: ${err.response?.data?.error || "Failed to save interaction"}`);
+            setStatus({ message: err.response?.data?.error || "Failed to save interaction", type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -212,7 +218,7 @@ export default function Sync({ residents, fetchResidents }) {
             // Try clipboard API first
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(exportText);
-                setStatus("Data copied to clipboard! Ready to paste into Excel.");
+                setStatus({ message: "Data copied to clipboard! Ready to paste into Excel.", type: 'success' });
             } else {
                 // Fallback for non-secure contexts (like some local dev environments)
                 const textArea = document.createElement("textarea");
@@ -228,17 +234,17 @@ export default function Sync({ residents, fetchResidents }) {
                 
                 try {
                     document.execCommand('copy');
-                    setStatus("Data copied to clipboard! Ready to paste into Excel.");
+                    setStatus({ message: "Data copied to clipboard! Ready to paste into Excel.", type: 'success' });
                 } catch (err) {
                     console.error('Fallback format copy failed', err);
-                    setStatus("Failed to copy data. Please try again.");
+                    setStatus({ message: "Failed to copy data. Please try again.", type: 'error' });
                 } finally {
                     textArea.remove();
                 }
             }
         } catch (err) {
             console.error("Export error", err);
-            setStatus("Failed to generate export data.");
+            setStatus({ message: "Failed to generate export data.", type: 'error' });
         }
         setIsCopying(false);
         // Clear success message after a few seconds
@@ -269,14 +275,45 @@ export default function Sync({ residents, fetchResidents }) {
                     <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         Manage resident data, sync from your current tracker, and export for external use.
                     </p>
-                    {status && (
-                        <div className={`status-text mt-3 ${status.startsWith('Error') ? 'error-text' : 'success-text'}`} 
-                             style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {status.startsWith('Error') ? <XCircle size={18} /> : 
-                             (status.startsWith('Success') || status.includes('copied') ? <CheckCircle size={18} /> : null)}
-                            {status}
-                        </div>
-                    )}
+                    <div className="sync-status-container">
+                        {status && status.type === 'success' ? (
+                            <div className="sync-success-card">
+                                <div className="success-header">
+                                    <div className="success-badge"><CheckCircle size={16} /> {status.message.includes('copied') ? 'Export Ready' : 'Data Synced'}</div>
+                                    <span className="success-timestamp">{new Date().toLocaleTimeString()}</span>
+                                </div>
+                                <div className="success-body">
+                                    {status.count !== undefined && (
+                                        <div className="success-stat">
+                                            <span className="stat-value">{status.count}</span>
+                                            <span className="stat-label">Residents</span>
+                                        </div>
+                                    )}
+                                    <div className="success-details">
+                                        <div className="detail-item">
+                                            <span className="detail-label">{status.message.includes('copied') ? 'Action' : 'Source'}</span>
+                                            <span className="detail-value">{status.file || (status.message.includes('copied') ? 'Clipboard Copy' : 'Manual Edit')}</span>
+                                        </div>
+                                        {status.backup && (
+                                            <div className="detail-item">
+                                                <span className="detail-label">Backup</span>
+                                                <span className="detail-value mono">{status.backup}</span>
+                                            </div>
+                                        )}
+                                        <div className="detail-item" style={{ marginTop: '4px' }}>
+                                            <span className="status-success-text" style={{ fontSize: '0.85rem', fontWeight: 500 }}>{status.message}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : status && (
+                            <div className={`sync-status ${status.type === 'error' ? 'status-error-text' : status.type === 'selection' ? 'status-warning-text' : 'status-info-text'}`}>
+                                {status.type === 'error' ? <XCircle size={18} /> : 
+                                 (status.type === 'info' ? <RefreshCw size={18} className="btn-spin" /> : <CheckCircle size={18} />)}
+                                {status.message}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="header-controls" style={{ gap: '1rem' }}>

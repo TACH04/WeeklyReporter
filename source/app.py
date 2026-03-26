@@ -209,6 +209,43 @@ def generate_interaction():
         "interaction": interaction
     })
 
+@app.route('/api/generate/stream', methods=['POST'])
+def generate_interaction_stream():
+    data = request.json
+    asu_id = data.get('asu_id')
+    topic = data.get('topic', '')
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key = 'llm_model'")
+    custom_model = cursor.fetchone()
+
+    if custom_model:
+        ollama.model = custom_model['value']
+
+    cursor.execute("SELECT * FROM residents WHERE asu_id = ?", (asu_id,))
+    resident = cursor.fetchone()
+
+    if not resident:
+        conn.close()
+        return jsonify({"error": "Resident not found"}), 404
+
+    cursor.execute("SELECT content FROM interactions WHERE asu_id = ? ORDER BY timestamp ASC", (asu_id,))
+    past_interactions = [row['content'] for row in cursor.fetchall()]
+    conn.close()
+
+    resident_name = f"{resident['first_name']} {resident['last_name']}"
+
+    def generate():
+        try:
+            for chunk in ollama.generate_interaction(resident_name, past_interactions, topic, stream=True):
+                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return Response(stream_with_context(generate()), content_type='text/event-stream')
+
 # --- SETUP WIZARD ENDPOINTS ---
 
 @app.route('/api/setup/status', methods=['GET'])
@@ -231,6 +268,35 @@ def get_setup_status():
         "setup_complete": settings.get('setup_complete') == 'true' or settings.get('setup_complete') is True
     })
 
+@app.route('/api/setup/check_chrome', methods=['GET'])
+def check_chrome():
+    """Check if Google Chrome is installed on the system."""
+    import platform
+    system = platform.system()
+    chrome_paths = []
+
+    if system == 'Darwin':  # macOS
+        chrome_paths = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            os.path.expanduser('~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
+        ]
+    elif system == 'Windows':
+        chrome_paths = [
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Google', 'Chrome', 'Application', 'chrome.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', 'C:\\Program Files (x86)'), 'Google', 'Chrome', 'Application', 'chrome.exe'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        ]
+    else:  # Linux
+        chrome_paths = [
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+        ]
+
+    installed = any(os.path.exists(p) for p in chrome_paths)
+    return jsonify({"chrome_installed": installed})
+
 @app.route('/api/setup/hardware', methods=['GET'])
 def check_hardware():
     import psutil
@@ -239,14 +305,14 @@ def check_hardware():
     
     # Recommendation Logic
     recommendation = "Low"
-    model_name = "qwen2.5:0.5b"
+    model_name = "qwen2.5:1.5b"
     
     if ram_gb >= 16:
         recommendation = "High"
-        model_name = "llama3.2:3b"
+        model_name = "llama3.1:8b"
     elif ram_gb >= 8:
         recommendation = "Medium"
-        model_name = "llama3.2:1b"
+        model_name = "qwen2.5:3b"
         
     return jsonify({
         "ram_gb": round(ram_gb, 2),

@@ -34,7 +34,7 @@ call .venv\Scripts\activate
 
 :: Install requirements
 echo Ensuring all required tools are installed...
-pip install -qr requirements.txt
+.venv\Scripts\python.exe -m pip install -qr requirements.txt
 
 :: Start the Flask app in background
 echo Starting Weekly Reporter Server...
@@ -42,7 +42,7 @@ echo Keep this window open while using the app.
 echo.
 
 :: Start python server
-start "Weekly Reporter Server" /MIN python app.py
+start "Weekly Reporter Server" /MIN .venv\Scripts\python.exe app.py
 
 :: Wait for server to boot (up to 30 seconds)
 echo Waiting for server to be ready...

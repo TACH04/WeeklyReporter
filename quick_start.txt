@@ -1,0 +1,35 @@
+QUICK START GUIDE - WEEKLY REPORTER
+
+1. HOW TO START THE PROGRAM
+   -------------------------
+   macOS: 
+   - Double-click 'start_mac.command' in the project folder.
+   
+   Windows:
+   - Double-click 'start_win.bat' in the project folder.
+
+2. PREREQUISITES & DOWNLOAD LINKS
+   ------------------------------
+   This application requires Python 3 and Ollama (for AI features).
+   
+   - Python 3 (3.10 or higher recommended): https://www.python.org/downloads/
+   - Ollama: https://ollama.com/download
+
+3. PERMISSION TROUBLESHOOTING
+   --------------------------
+   If the script fails to run due to permissions:
+
+   macOS:
+   - Open 'Terminal'.
+   - Type 'chmod +x ' (with a space at the end).
+   - Drag 'start_mac.command' into the Terminal window.
+   - Press Enter.
+   - Now you can double-click it to run.
+
+   Windows:
+   - If Windows warns you about an "unrecognized app," click "More info" and then "Run anyway."
+   - If it still won't run, right-click 'start_win.bat', select 'Properties', and check 'Unblock' (at the bottom) if it's there, then click OK.
+
+4. NEED HELP?
+   ----------
+   Refer to 'INSTRUCTIONS.md' for more detailed guidance on using the application.

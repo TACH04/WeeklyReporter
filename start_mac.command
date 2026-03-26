@@ -28,7 +28,7 @@ source .venv/bin/activate
 
 # Install requirements (quietly to not scare the user)
 echo "Ensuring all required tools are installed..."
-pip install -qr requirements.txt
+./.venv/bin/python3 -m pip install -qr requirements.txt
 
 # Start the Flask app
 echo "Starting Weekly Reporter Server..."
@@ -48,7 +48,7 @@ cleanup() {
 # Trap SIGINT (Ctrl+C) and closed window
 trap cleanup SIGINT SIGTERM EXIT
 
-python3 app.py &
+./.venv/bin/python3 app.py &
 BACKEND_PID=$!
 
 # Wait for server to boot (up to 30 seconds)

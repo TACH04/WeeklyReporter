@@ -123,6 +123,19 @@ function App() {
           setAsuId(newAsuId);
           checkSetupStatus();
         }}
+        onResetSetup={async () => {
+          try {
+            await fetch(`${API_BASE_URL}/api/setup/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ setup_complete: 'false' })
+            });
+            setIsSetupComplete(false);
+            setIsProfileOpen(false);
+          } catch (err) {
+            console.error("Failed to reset setup", err);
+          }
+        }}
       />
 
       {/* Main Content Area */}

@@ -2,7 +2,7 @@ import requests
 import json
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-DEFAULT_MODEL = "qwen2.5:14b"
+DEFAULT_MODEL = "qwen2.5:3b"
 
 class OllamaClient:
     def __init__(self, model=DEFAULT_MODEL):
@@ -57,7 +57,7 @@ class OllamaClient:
             print(f"Error deleting model {model_name}: {e}")
             return False
 
-    def generate_interaction(self, resident_name, past_interactions, topic=""):
+    def generate_interaction(self, resident_name, past_interactions, topic="", stream=False):
         context = "\n".join([f"- {i}" for i in past_interactions])
         
         topic_instruction = f"Specifically mention or focus the conversation around: {topic}" if topic else "Mention a common student topic: classes, floor meetings, social activities, stress about finals/essays, or running into them in the hallway/lounge."
@@ -73,8 +73,9 @@ Guidelines:
 1. The interaction should be casual and brief (2-4 sentences).
 2. It should sound like it was written by a college student RA (professional but relatable).
 3. {topic_instruction}
-4. Do not exceed 100 words.
-5. Provide ONLY the text of the interaction.
+4. Avoid using dashes (—), hyphens (-), semicolons (;), or exclamation points (!). Use standard punctuation like periods and commas instead.
+5. Do not exceed 75 words.
+6. Provide ONLY the text of the interaction.
 
 Interaction:
 """
@@ -82,15 +83,33 @@ Interaction:
         payload = {
             "model": self.model,
             "prompt": prompt,
-            "stream": False
+            "stream": stream
         }
         
-        try:
-            response = requests.post(f"{self.base_url}/generate", json=payload)
-            response.raise_for_status()
-            return response.json().get("response", "").strip().strip('"')
-        except Exception as e:
-            return f"Error generating interaction: {str(e)}"
+        if stream:
+            try:
+                response = requests.post(f"{self.base_url}/generate", json=payload, stream=True)
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            data = json.loads(line)
+                            chunk = data.get("response", "")
+                            if chunk:
+                                yield chunk
+                            if data.get("done", False):
+                                break
+                        except Exception:
+                            continue
+            except Exception as e:
+                yield f"Error generating interaction: {str(e)}"
+        else:
+            try:
+                response = requests.post(f"{self.base_url}/generate", json=payload)
+                response.raise_for_status()
+                return response.json().get("response", "").strip().strip('"')
+            except Exception as e:
+                return f"Error generating interaction: {str(e)}"
 
 if __name__ == "__main__":
     # Test generation

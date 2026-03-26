@@ -82,34 +82,66 @@ export default function Dashboard({
         }
     };
 
+    const streamInteraction = async (res, residentTopic) => {
+        return new Promise((resolve) => {
+            fetch(`${API_BASE}/generate/stream`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asu_id: res.asu_id, topic: residentTopic })
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                const read = () => {
+                    reader.read().then(({ done, value }) => {
+                        if (done) { resolve(); return; }
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.chunk) {
+                                        setInteractions(prev => ({
+                                            ...prev,
+                                            [res.asu_id]: (prev[res.asu_id] || '') + data.chunk
+                                        }));
+                                    }
+                                    if (data.done || data.error) { resolve(); return; }
+                                } catch (e) { /* ignore parse errors */ }
+                            }
+                        }
+                        read();
+                    }).catch(() => resolve());
+                };
+                read();
+            }).catch((err) => {
+                console.error('Stream error for', res.asu_id, err);
+                resolve();
+            });
+        });
+    };
+
     const generateInteractions = async () => {
         setLoading(true);
         setStatus("Generating interactions via Ollama...");
-        const newInteractions = { ...interactions };
 
         for (const res of selectedResidents) {
-            const currentContent = newInteractions[res.asu_id] || "";
-            // Use local content as topic if it's short (likely a topic) or use global topic if empty
-            // If it's already a full interaction (long), we skip to avoid accidental overwrites
-            // unless the user specifically cleared it or typed a short topic.
+            const currentContent = interactions[res.asu_id] || "";
             const isTopic = currentContent.length > 0 && currentContent.length < 60;
             const isEmpty = currentContent.trim() === "";
 
             if (isEmpty || isTopic) {
-                try {
-                    const residentTopic = isTopic ? currentContent : topic;
-                    const response = await axios.post(`${API_BASE}/generate`, { 
-                        asu_id: res.asu_id, 
-                        topic: residentTopic 
-                    });
-                    newInteractions[res.asu_id] = response.data.interaction;
-                } catch (err) {
-                    console.error("Error generating for", res.asu_id, err);
-                }
+                const residentTopic = isTopic ? currentContent : topic;
+                // Clear the field so the stream starts fresh
+                setInteractions(prev => ({ ...prev, [res.asu_id]: '' }));
+                setStatus(`Generating for ${res.first_name}...`);
+                await streamInteraction(res, residentTopic);
             }
         }
 
-        setInteractions(newInteractions);
         setLoading(false);
         setStatus("Generation complete.");
     };
@@ -126,20 +158,12 @@ export default function Dashboard({
         }
         setLoading(true);
         setStatus(`Regenerating interaction for ${resident.first_name}...`);
-        try {
-            const currentContent = interactions[resident.asu_id] || "";
-            const residentTopic = (currentContent.length > 0 && currentContent.length < 60) ? currentContent : topic;
-
-            const response = await axios.post(`${API_BASE}/generate`, { 
-                asu_id: resident.asu_id, 
-                topic: residentTopic 
-            });
-            setInteractions(prev => ({ ...prev, [resident.asu_id]: response.data.interaction }));
-            setStatus("Generation complete.");
-        } catch (err) {
-            console.error("Error generating for", resident.asu_id, err);
-            setStatus("Generation failed.");
-        }
+        const currentContent = interactions[resident.asu_id] || "";
+        const residentTopic = (currentContent.length > 0 && currentContent.length < 60) ? currentContent : topic;
+        // Clear field so stream starts fresh
+        setInteractions(prev => ({ ...prev, [resident.asu_id]: '' }));
+        await streamInteraction(resident, residentTopic);
+        setStatus("Generation complete.");
         setLoading(false);
     };
 

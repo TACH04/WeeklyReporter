@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, X, Save, Edit2, Brain, Cpu, CheckCircle2, Download, Trash2 } from 'lucide-react';
+import { User, X, Save, Edit2, Brain, Cpu, CheckCircle2, Download, Trash2, HelpCircle } from 'lucide-react';
 import './WelcomeWizard.css';
 
-export default function ProfileModal({ isOpen, onClose, setupStatus, onSaveComplete }) {
+export default function ProfileModal({ isOpen, onClose, setupStatus, onSaveComplete, onResetSetup }) {
     const [profile, setProfile] = useState({ name: '', email: '', asuid: '' });
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState('');
@@ -149,12 +149,15 @@ export default function ProfileModal({ isOpen, onClose, setupStatus, onSaveCompl
     };
 
     const modelLevels = [
-        { level: 'Low', name: 'qwen2.5:0.5b', desc: 'Fastest, lowest RAM' },
-        { level: 'Medium', name: 'llama3.2:1b', desc: 'Balanced performance' },
-        { level: 'High', name: 'llama3.2:3b', desc: 'Better quality, more RAM' }
+        { level: 'Low', name: 'qwen2.5:1.5b', desc: 'Fastest, works on any hardware' },
+        { level: 'Medium', name: 'qwen2.5:3b', desc: 'Balanced speed and quality' },
+        { level: 'High', name: 'llama3.1:8b', desc: 'Premium quality, recommended for 16GB+ RAM' }
     ];
 
-    const currentModelLevel = setupStatus?.settings?.llm_model_level || 'Medium';
+    const currentModelLevel = setupStatus?.settings?.llm_model_level || 
+        modelLevels.find(m => m.name === setupStatus?.settings?.llm_model)?.level || 
+        'Medium';
+
 
     return (
         <div className="wizard-overlay" style={{ zIndex: 3000 }}>
@@ -194,10 +197,23 @@ export default function ProfileModal({ isOpen, onClose, setupStatus, onSaveCompl
                                         <div style={{ fontSize: '1.1rem', fontWeight: '500', marginTop: '0.25rem' }}>{profile.email || 'Not set'}</div>
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '0.5rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
                                     <button type="button" className="btn btn-primary" onClick={() => setIsEditing(true)}>
                                         <Edit2 size={18} />
                                         Edit Profile
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        className="btn btn-secondary" 
+                                        onClick={() => {
+                                            if (window.confirm("Launch the setup tutorial again? You won't lose your data.")) {
+                                                onResetSetup();
+                                            }
+                                        }}
+                                        style={{ borderStyle: 'dashed' }}
+                                    >
+                                        <HelpCircle size={18} />
+                                        Replay Tutorial
                                     </button>
                                 </div>
                             </div>
