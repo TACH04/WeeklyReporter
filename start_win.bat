@@ -16,11 +16,19 @@ taskkill /f /im python.exe /fi "windowtitle eq Weekly Reporter Server" >nul 2>&1
 :: Check for Python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Error: Python is not installed or not in PATH.
-    echo Please download and install it from https://www.python.org/downloads/
-    echo Make sure to check the box "Add Python to PATH" during installation.
+    echo Python is missing. Attempting to install automatically via winget...
+    winget install -e --id Python.Python.3 --silent --accept-package-agreements --accept-source-agreements
+    if %errorlevel% neq 0 (
+        echo.
+        echo Error: Automatic install failed. Please install Python 3 manually from https://www.python.org/downloads/
+        echo Make sure to check "Add Python to PATH" during installation.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo Python installed successfully. Please RESTART this script to continue.
     pause
-    exit /b 1
+    exit /b 0
 )
 
 :: Set up virtual environment on first run
@@ -35,6 +43,47 @@ call .venv\Scripts\activate
 :: Install requirements
 echo Ensuring all required tools are installed...
 .venv\Scripts\python.exe -m pip install -qr requirements.txt
+
+:: Ensure frontend is built
+if not exist "static\index.html" (
+    echo Frontend build missing. Attempting to build...
+    
+    :: Check for Node.js
+    node -v >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo Node.js is missing. Attempting to install automatically via winget...
+        winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
+        if %errorlevel% neq 0 (
+            echo.
+            echo Error: Automatic install failed. Please install Node.js manually from https://nodejs.org/
+            pause
+            exit /b 1
+        )
+        echo.
+        echo Node.js installed successfully. Please RESTART this script to continue.
+        pause
+        exit /b 0
+    )
+    
+    cd frontend
+    echo Installing frontend dependencies (this may take a minute)...
+    call npm install
+    if %errorlevel% neq 0 (
+        echo Error: npm install failed.
+        pause
+        exit /b 1
+    )
+    
+    echo Building frontend...
+    call npm run build
+    if %errorlevel% neq 0 (
+        echo Error: npm run build failed.
+        pause
+        exit /b 1
+    )
+    
+    cd ..
+)
 
 :: Start the Flask app in background
 echo Starting Weekly Reporter Server...

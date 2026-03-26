@@ -10,11 +10,15 @@ echo ""
 
 # Check for Python
 if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3 is not installed."
-    echo "Please download and install it from https://www.python.org/downloads/"
-    echo "Press any key to exit..."
-    read -n 1
-    exit 1
+    echo "Python 3 is missing. Attempting to install automatically via Homebrew..."
+    if command -v brew &> /dev/null; then
+        brew install python
+    else
+        echo "Error: Python 3 is not installed and Homebrew was not found."
+        echo "Please install it from https://www.python.org/downloads/"
+        read -p "Press any key to exit..."
+        exit 1
+    fi
 fi
 
 # Set up virtual environment on first run
@@ -29,6 +33,43 @@ source .venv/bin/activate
 # Install requirements (quietly to not scare the user)
 echo "Ensuring all required tools are installed..."
 ./.venv/bin/python3 -m pip install -qr requirements.txt
+
+# Ensure frontend is built
+if [ ! -f "static/index.html" ]; then
+    echo "Frontend build missing. Attempting to build..."
+    
+    # Check for Node.js
+    if ! command -v node &> /dev/null; then
+        echo "Node.js is missing. Attempting to install automatically via Homebrew..."
+        if command -v brew &> /dev/null; then
+            brew install node
+        else
+            echo "Error: Node.js is not installed and Homebrew was not found."
+            echo "Please install it from https://nodejs.org/"
+            read -p "Press any key to exit..."
+            exit 1
+        fi
+    fi
+    
+    cd frontend
+    echo "Installing frontend dependencies (this may take a minute)..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "Error: npm install failed."
+        read -p "Press any key to exit..."
+        exit 1
+    fi
+    
+    echo "Building frontend..."
+    npm run build
+    if [ $? -ne 0 ]; then
+        echo "Error: npm run build failed."
+        read -p "Press any key to exit..."
+        exit 1
+    fi
+    
+    cd ..
+fi
 
 # Start the Flask app
 echo "Starting Weekly Reporter Server..."

@@ -27,6 +27,7 @@ The application automatically reads data from your Excel tracker.
 ## 🛠 Troubleshooting
 
 - **Server won't start:** Ensure you have Python 3 installed.
+- **Frontend not visible:** If the web app shows an error about a missing build, ensure you have **Node.js** installed. The startup script will try to build it for you on the first run.
 - **Port 5001 is busy:** Close any other instances of Weekly Reporter or other apps using that port.
 - **AI not responding:** Ensure Ollama is installed and running on your machine.
 
