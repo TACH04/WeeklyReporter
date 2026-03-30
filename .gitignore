@@ -142,9 +142,7 @@ cython_debug/
 node_modules/
 frontend/node_modules/
 
-# Frontend builds
-static/
-static/assets/
+# Frontend builds (dist-ssr only; static/ is committed so users don't need npm)
 frontend/dist/
 frontend/dist-ssr/
 
@@ -172,7 +170,6 @@ source/__pycache__/
 source/.venv/
 source/node_modules/
 source/frontend/node_modules/
-source/static/
 source/data/
 data/
 

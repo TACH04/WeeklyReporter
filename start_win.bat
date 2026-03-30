@@ -78,51 +78,14 @@ if errorlevel 1 (
 )
 call :LOG "pip install OK."
 
-:: ── Check for Node.js ─────────────────────────────────────────────────────────
-call :LOG "Checking for Node.js..."
-node -v >nul 2>&1
-if errorlevel 1 (
-    call :LOG "Node.js NOT found. Attempting winget install..."
-    echo Node.js is missing. Attempting to install automatically via winget...
-    call winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
-    if errorlevel 1 (
-        call :LOG "ERROR: winget Node.js install failed."
-        echo.
-        echo Error: Automatic install failed. Please install Node.js manually from https://nodejs.org/
-        goto :FATAL
-    )
-    call :LOG "Node.js installed. Requesting restart."
-    echo.
-    echo Node.js installed successfully. Please RESTART this script to continue.
-    pause
-    exit /b 0
-)
-call :LOG "Node.js found OK."
-
-:: ── Ensure frontend is built ──────────────────────────────────────────────────
+:: ── Verify frontend assets are present ───────────────────────────────────────
+call :LOG "Checking for frontend assets (static\index.html)..."
 if not exist "static\index.html" (
-    call :LOG "Frontend not built. Running npm install + build..."
-    echo Frontend build missing. Attempting to build...
-    pushd frontend
-    echo Installing frontend dependencies (this may take a minute)...
-    call npm install
-    if errorlevel 1 (
-        call :LOG "ERROR: npm install failed."
-        echo Error: npm install failed.
-        popd
-        goto :FATAL
-    )
-    echo Building frontend...
-    call npm run build
-    if errorlevel 1 (
-        call :LOG "ERROR: npm run build failed."
-        echo Error: npm run build failed.
-        popd
-        goto :FATAL
-    )
-    popd
-    call :LOG "Frontend built OK."
+    call :LOG "ERROR: static\index.html not found. App may be incomplete."
+    echo Error: Frontend files are missing. Please re-download the application.
+    goto :FATAL
 )
+call :LOG "Frontend assets OK."
 
 :: ── Start the Flask app ───────────────────────────────────────────────────────
 call :LOG "Launching Flask server..."
@@ -130,17 +93,25 @@ echo Starting Weekly Reporter Server...
 echo Keep this window open while using the app.
 echo.
 
-start "Weekly Reporter Server" /MIN "%~dp0source\.venv\Scripts\python.exe" "%~dp0source\app.py"
+start "Weekly Reporter Server" /D "%~dp0source" /MIN "%~dp0source\.venv\Scripts\python.exe" "app.py"
+call :LOG "Flask start command issued. Waiting for server..."
 
 :: ── Wait for server to boot (up to 30 seconds) ───────────────────────────────
 echo Waiting for server to be ready...
 set "ATTEMPT=0"
 :waitloop
 set /a ATTEMPT+=1
+
+:: Try curl first, fall back to PowerShell if not available
 curl -s -o nul -w "%%{http_code}" http://localhost:5001 2>nul | findstr /c:"200" >nul 2>&1
 if !errorlevel! equ 0 goto startbrowser
+
+:: PowerShell fallback health check
+powershell -nologo -noprofile -command "try { $r=(Invoke-WebRequest -Uri 'http://localhost:5001' -UseBasicParsing -TimeoutSec 1 -ErrorAction Stop).StatusCode; if ($r -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+if !errorlevel! equ 0 goto startbrowser
+
 if !ATTEMPT! geq 30 (
-    call :LOG "ERROR: Server did not respond after 30s. Check startup_log.txt"
+    call :LOG "ERROR: Server did not respond after 30s."
     echo Error: Server failed to start within 30 seconds.
     echo Check startup_log.txt for details.
     goto :FATAL
