@@ -175,3 +175,6 @@ source/frontend/node_modules/
 source/static/
 source/data/
 data/
+
+*.jpg
+*.png

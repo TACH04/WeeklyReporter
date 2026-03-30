@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Dashboard from './Dashboard'
 import Sync from './Sync'
 import './App.css'
-import { Database, Home, ChevronLeft, ChevronRight, Loader, User } from 'lucide-react'
+import { Database, Home, ChevronLeft, ChevronRight, Loader, User, Power } from 'lucide-react'
 import WelcomeWizard from './WelcomeWizard'
 import ProfileModal from './ProfileModal'
 
@@ -111,6 +111,21 @@ function App() {
             title="Profile"
           >
             <User size={20} />
+          </button>
+
+          <button 
+            className="nav-button"
+            title="Quit App"
+            style={{ marginTop: 'auto', color: '#ef4444' }}
+            onClick={async () => {
+              if (!confirm('Stop Weekly Reporter?')) return;
+              try {
+                await fetch(`${API_BASE_URL}/api/quit`, { method: 'POST' });
+              } catch (_) {}
+              window.close();
+            }}
+          >
+            <Power size={20} />
           </button>
         </div>
       </nav>

@@ -1,7 +1,7 @@
 import os
 import glob
 import pandas as pd
-from database import get_db
+from database import get_db, get_app_data_dir
 import math
 from datetime import datetime
 import math
@@ -184,11 +184,12 @@ def sync_dataframe(df, source_name):
         # --- Backup Existing DB File ---
         import shutil
         current_time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weekly_reporter.db")
+        data_dir = get_app_data_dir()
+        db_path = os.path.join(data_dir, "weekly_reporter.db")
         backup_name = f"weekly_reporter_backup_{current_time_str}.db"
         
         if os.path.exists(db_path):
-            shutil.copy2(db_path, os.path.join(os.path.dirname(os.path.abspath(__file__)), backup_name))
+            shutil.copy2(db_path, os.path.join(data_dir, backup_name))
             print(f"Backed up database to {backup_name}")
             
         conn = get_db()

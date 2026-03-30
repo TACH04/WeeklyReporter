@@ -1,8 +1,23 @@
 import sqlite3
 import os
+import sys
 
 DB_NAME = "weekly_reporter.db"
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), DB_NAME)
+
+def get_app_data_dir():
+    """Returns a persistent, writable data directory outside the app bundle.
+    Safe for both development and PyInstaller-bundled (.app / .exe) modes."""
+    if sys.platform == 'darwin':
+        base = os.path.expanduser("~/Library/Application Support")
+    elif sys.platform == 'win32':
+        base = os.environ.get('APPDATA', os.path.expanduser("~"))
+    else:
+        base = os.path.expanduser("~")
+    path = os.path.join(base, "Weekly Reporter")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+DB_PATH = os.path.join(get_app_data_dir(), DB_NAME)
 
 def get_db():
     """Returns a new SQLite connection."""

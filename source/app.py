@@ -1,13 +1,25 @@
 from flask import Flask, jsonify, request, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
 import os
+import sys
 import json
 from database import get_db
 from ollama_client import OllamaClient
 from data_sync import sync_data, sync_paste
 
-# Point Flask to the 'static' folder which Vite will build into
-app = Flask(__name__, static_folder="static", static_url_path="/")
+# --- Bundle-safe base path resolution ---
+def get_bundle_dir():
+    """Returns the correct base directory in both dev and PyInstaller (.app) bundled mode.
+    In a .app bundle, sys.executable lives inside Contents/MacOS/, and data/static files
+    are bundled alongside it (onedir mode). We use sys.executable's dir, not sys._MEIPASS."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+BUNDLE_DIR = get_bundle_dir()
+
+# Point Flask to the 'static' folder (Vite build output), resolved safely for both modes
+app = Flask(__name__, static_folder=os.path.join(BUNDLE_DIR, "static"), static_url_path="/")
 CORS(app)
 
 ollama = OllamaClient()
@@ -543,5 +555,43 @@ def save_interactions():
         "saved_count": saved_count
     })
 
+@app.route('/api/quit', methods=['POST'])
+def quit_app():
+    """Gracefully shuts down the server process."""
+    import signal
+    import threading as _threading
+    def _shutdown():
+        import time
+        time.sleep(0.5)  # Allow response to be sent before killing
+        os.kill(os.getpid(), signal.SIGTERM)
+    _threading.Thread(target=_shutdown, daemon=True).start()
+    return jsonify({"message": "Shutting down Weekly Reporter..."})
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    import socket
+    import threading
+    import webbrowser
+
+    # Find the first available port in range 5001-5010
+    port = 5001
+    for p in range(5001, 5011):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('127.0.0.1', p)) != 0:  # port is free
+                port = p
+                break
+
+    def open_browser():
+        import time
+        time.sleep(1.5)
+        webbrowser.open(f"http://localhost:{port}")
+
+    threading.Thread(target=open_browser, daemon=True).start()
+
+    try:
+        from waitress import serve
+        print(f"Starting Weekly Reporter on http://localhost:{port} (Waitress)")
+        serve(app, host='127.0.0.1', port=port)
+    except ImportError:
+        # Fallback to Flask dev server if waitress isn't installed (dev environment)
+        print(f"Waitress not found — falling back to Flask dev server on port {port}")
+        app.run(debug=False, port=port)
