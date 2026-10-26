@@ -6,7 +6,7 @@ QUICK START GUIDE - WEEKLY REPORTER
    - Double-click 'start_mac.command' in the project folder.
    
    Windows:
-   - Double-click 'start_win.bat' in the project folder.
+   - Double-click 'Start Weekly Reporter.bat' in the project folder.
 
 2. PREREQUISITES & DOWNLOAD LINKS
    ------------------------------
@@ -28,7 +28,7 @@ QUICK START GUIDE - WEEKLY REPORTER
 
    Windows:
    - If Windows warns you about an "unrecognized app," click "More info" and then "Run anyway."
-   - If it still won't run, right-click 'start_win.bat', select 'Properties', and check 'Unblock' (at the bottom) if it's there, then click OK.
+   - If it still won't run, right-click 'Start Weekly Reporter.bat', select 'Properties', and check 'Unblock' (at the bottom) if it's there, then click OK.
 
 4. NEED HELP?
    ----------

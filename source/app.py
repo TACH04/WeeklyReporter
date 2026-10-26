@@ -3,6 +3,9 @@ from flask_cors import CORS
 import os
 import sys
 import json
+import io
+import csv
+import re
 from database import get_db
 from ollama_client import OllamaClient
 from data_sync import sync_data, sync_paste
@@ -148,10 +151,11 @@ def update_interaction(interaction_id):
     if not content:
         return jsonify({"error": "Content is required"}), 400
         
+    clean_content = re.sub(r'[\r\n\t]+', ' ', str(content)).strip()
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE interactions SET content = ? WHERE id = ?", (content, interaction_id))
+        cursor.execute("UPDATE interactions SET content = ? WHERE id = ?", (clean_content, interaction_id))
         conn.commit()
     except Exception as e:
         conn.close()
@@ -466,7 +470,9 @@ def get_export_data():
         "Interaction 1", "Interaction 2", "Interaction 3"
     ]
     
-    tsv_rows = ["\t".join(header)]
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter='\t', lineterminator='\n')
+    writer.writerow(header)
     
     for r in residents_rows:
         r_dict = dict(r)
@@ -475,26 +481,31 @@ def get_export_data():
         
         # Build the row
         row = [
-            str(r_dict.get('asu_id', '')),
-            r_dict.get('last_name', '') or '',
-            r_dict.get('first_name', '') or '',
-            r_dict.get('email', '') or '',
-            r_dict.get('room', '') or ''
+            str(r_dict.get('asu_id', '') or '').strip(),
+            (r_dict.get('last_name', '') or '').strip(),
+            (r_dict.get('first_name', '') or '').strip(),
+            (r_dict.get('email', '') or '').strip(),
+            (r_dict.get('room', '') or '').strip()
         ]
         
-        # Add 3 side-by-side interaction columns
+        # Add 3 side-by-side interaction columns, sanitized so newlines and tabs never break Excel rows/columns
         for i in range(3):
-            if i < len(interactions):
-                row.append(interactions[i])
+            if i < len(interactions) and interactions[i]:
+                clean_text = re.sub(r'[\r\n\t]+', ' ', str(interactions[i])).strip()
+                row.append(clean_text)
             else:
                 row.append("")
         
-        tsv_rows.append("\t".join(row))
+        writer.writerow(row)
         
     conn.close()
     
+    export_text = output.getvalue()
+    if export_text.endswith('\n'):
+        export_text = export_text[:-1]
+    
     return jsonify({
-        "text": "\n".join(tsv_rows),
+        "text": export_text,
         "filename": "weekly_reporter_export.txt"
     })
 
@@ -540,12 +551,14 @@ def save_interactions():
         resident_id = item.get('asu_id')
         summary = item.get('summary')
         if resident_id and summary:
-            # Insert the interaction into the interactions table
-            cursor.execute(
-                "INSERT INTO interactions (asu_id, content) VALUES (?, ?)",
-                (resident_id, summary)
-            )
-            saved_count += 1
+            clean_summary = re.sub(r'[\r\n\t]+', ' ', str(summary)).strip()
+            if clean_summary:
+                # Insert the interaction into the interactions table
+                cursor.execute(
+                    "INSERT INTO interactions (asu_id, content) VALUES (?, ?)",
+                    (resident_id, clean_summary)
+                )
+                saved_count += 1
             
     conn.commit()
     conn.close()

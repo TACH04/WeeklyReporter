@@ -52,8 +52,8 @@ export default function Dashboard({
             const payload = {
                 interactions: selectedResidents.map(r => ({
                     asu_id: r.asu_id,
-                    summary: interactions[r.asu_id] || ""
-                })).filter(i => i.summary.trim() !== "")
+                    summary: (interactions[r.asu_id] || "").trim()
+                })).filter(i => i.summary !== "")
             };
             
             if (payload.interactions.length === 0) {

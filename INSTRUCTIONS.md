@@ -11,7 +11,7 @@ Welcome to **Weekly Reporter**! This application helps you manage resident inter
 
 ### On Windows
 1. Open the `Weekly Reporter` folder.
-2. Double-click **`start_win.bat`**.
+2. Double-click **`Start Weekly Reporter.bat`**.
    - *Note: Keep the terminal window open while you use the app.*
 
 ---

@@ -175,3 +175,8 @@ data/
 
 *.jpg
 *.png
+
+# Debug and sensitive tracking files
+debug/
+debug.txt
+*.backup

@@ -231,7 +231,7 @@ def sync_dataframe(df, source_name):
             
             for i in mapping['interactions']:
                 if i < len(row) and not pd.isna(row.iloc[i]):
-                    val = str(row.iloc[i]).strip()
+                    val = re.sub(r'[\r\n\t]+', ' ', str(row.iloc[i])).strip()
                     if val and val.lower() != 'nan':
                         new_interactions.append((asuid, val))
             
